@@ -8,7 +8,7 @@ galaxy
 
 # VS Code
 .vscode/
-
+*.txt
 # OS files
 .DS_Store
 Thumbs.db
