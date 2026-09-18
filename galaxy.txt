@@ -405,7 +405,7 @@ int main() {
         
             ClearBackground(BLACK);
             DrawTexture(map,0,0,WHITE);
-            DISTANCE += 200 * dt;
+            DISTANCE += 333 * dt;
 
             ship.Draw();
             for (auto& moon : moons) moon.Draw();
