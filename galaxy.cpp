@@ -8,9 +8,8 @@ using namespace std;
 
                 /*--------------------------------------------------------------------------+
                 |                       Galaxy Shooter C++ Игра без ИИ                       |
-                |                         Начало проекта: 09.09.2026                         |
+                |                         Начало проекта: 09.09.2026                        |
                 +--------------------------------------------------------------------------*/
-
 
 const int WIDTH = 1000;
 const int HEIGHT = 1080;
@@ -19,10 +18,40 @@ float DISTANCE = 0;
 int BULLET_DAMAGE = 10;
 const int MAX_DAMAGE = 30;
 
-
 Color MyYellow = {229, 255, 0, 255};
 Color MyOrange = {255, 167, 0, 255};
 Color MyRed = {255, 0, 0, 255};
+
+
+class SpaceShip {
+public:
+    Texture2D texture;
+    float x, y;
+    const float width = 150, height = 150;
+
+    SpaceShip() : texture(LoadTexture("assets/textures/galaxyship.png")),x(WIDTH / 2.0f), y(HEIGHT - 150.0f) {};
+
+    ~SpaceShip() {
+        UnloadTexture(texture);
+    }
+
+    void Update() {
+        if (IsKeyDown(KEY_A) || IsKeyDown(KEY_LEFT)) {
+            x -= 8;
+        }
+        if (IsKeyDown(KEY_D) || IsKeyDown(KEY_RIGHT)){
+            x += 8;
+        }
+        x = clamp(x, width / 2, WIDTH - width / 2);
+    }
+
+    void Draw() {
+        DrawTexturePro(texture,
+            {0, 0, (float)texture.width, (float)texture.height},
+            {x - width / 2, y, width, height}, {0, 0}, 0, WHITE);
+    }
+};
+
 
 class Bullet {
 public:
@@ -46,6 +75,7 @@ public:
     }
 };
 
+
 class SpaceObject {
 public:
     Texture2D texture;
@@ -55,7 +85,7 @@ public:
     int health;
 
     SpaceObject(Texture2D texture, float x, float y,
-            float width, float height, float speed, int health) : 
+            float width, float height, float speed, int health) :
             texture(texture), x(x),y(y),width(width),height(height),speed(speed),health(health) {}
 
     virtual void Update(float dt) {
@@ -85,7 +115,44 @@ public:
 
     virtual ~SpaceObject() = default;
 };
-    
+
+class Explosion {
+public:
+    Texture2D texture;
+    float x, y;
+    float width, height;
+    float timer = 0;
+    int currentFrame = 0;
+    int frameCount = 4;
+    float frameTime = 0.07f;
+    bool finished = false;
+
+    Explosion(Texture2D texture,float x,float y,float width,float height) : texture(texture),x(x),y(y),width(width),height(height) {}
+
+    void Update(float dt) {
+        timer += dt;
+        if (timer >= frameTime) {
+            timer -= frameTime;
+            currentFrame++;
+            if (currentFrame >= frameCount)
+                finished = true;
+        }
+    }
+
+    void Draw() {
+        if (finished) return;
+        float frameWidth = (float)texture.width / frameCount;
+        Rectangle source = {currentFrame * frameWidth,0,frameWidth,(float)texture.height};
+        Rectangle destination = {x,y,width,height};
+        DrawTexturePro(texture,source,destination,{0,0},0,WHITE);
+    }
+};
+
+
+void CreateExplosion(const SpaceObject& object,Texture2D explosionTexture,vector<Explosion>& explosions) {
+    explosions.push_back(Explosion(explosionTexture,object.x,object.y,object.width,object.height));
+}
+
 
 class Meteor : public SpaceObject {
 public:
@@ -122,6 +189,7 @@ public:
          GetRandomValue(0, WIDTH - size), -100, size, size, GetRandomValue(100,180),400) {}
 };
 
+
 class Jupiter : public SpaceObject {
 public:
     Jupiter(Texture2D texture) : Jupiter(texture, GetRandomValue(340, 400)) {}
@@ -129,6 +197,7 @@ public:
     Jupiter(Texture2D texture, int size) : SpaceObject(texture,
         GetRandomValue(0, WIDTH-size), -100, size, size, GetRandomValue(90,150),600) {}
 };
+
 
 class Sun : public SpaceObject {
 public:
@@ -138,41 +207,13 @@ public:
         GetRandomValue(0, WIDTH-size), -100, size, size, GetRandomValue(80,140), 690) {}
 };
 
+
 class BlackHole : public SpaceObject {
 public:
     BlackHole(Texture2D texture) : BlackHole(texture, GetRandomValue(450,500)) {}
 
     BlackHole(Texture2D texture, int size) : SpaceObject(texture,
         GetRandomValue(0, WIDTH-size), -100, size, size, GetRandomValue(70,120), 750) {}
-};
-
-class SpaceShip {
-public:
-    Texture2D texture;
-    float x, y;
-    const float width = 150, height = 150;
-
-    SpaceShip() : texture(LoadTexture("assets/textures/galaxyship.png")),x(WIDTH / 2.0f), y(HEIGHT - 150.0f) {};
-
-    ~SpaceShip() { 
-        UnloadTexture(texture);
-     }
-
-    void Update() {
-        if (IsKeyDown(KEY_A) || IsKeyDown(KEY_LEFT)) {
-             x -= 7;
-        }
-        if (IsKeyDown(KEY_D) || IsKeyDown(KEY_RIGHT)){
-            x += 7; 
-        }
-        x = clamp(x, width / 2, WIDTH - width / 2);
-    }
-
-    void Draw() {
-        DrawTexturePro(texture,
-            {0, 0, (float)texture.width, (float)texture.height},
-            {x - width / 2, y, width, height}, {0, 0}, 0, WHITE);
-    }
 };
 
 
@@ -190,6 +231,7 @@ int main() {
     vector<Jupiter> jupiters;
     vector<Sun> suns;
     vector<BlackHole> blackholes;
+    vector<Explosion> explosions;
 
     float moonTimer = 10;
     float meteorTimer = 0;
@@ -208,11 +250,12 @@ int main() {
     Texture2D jupiterTexture = LoadTexture("assets/textures/jupiter.png");
     Texture2D sunTexture = LoadTexture("assets/textures/sun.png");
     Texture2D blackholeTexture = LoadTexture("assets/textures/blackhole.png");
+    Texture2D explosionTexture = LoadTexture("assets/textures/explosionssprite.png");
 
     while (!WindowShouldClose()) {
         float dt = GetFrameTime();
         ship.Update();
-        
+
         // timers
         moonTimer -= dt;
         meteorTimer -= dt;
@@ -262,12 +305,12 @@ int main() {
             blackholes.push_back(BlackHole(blackholeTexture));
             blackholeTimer = 100.0f;
         }
-        
+
         // initialization
         for (auto& bullet : bullets) bullet.Update(dt);
-            bullets.erase(remove_if(bullets.begin(), bullets.end(),[](const Bullet& bullet) {
-                return !bullet.active || bullet.y < -20;
-                    }),bullets.end());
+        bullets.erase(remove_if(bullets.begin(), bullets.end(),[](const Bullet& bullet) {
+            return !bullet.active || bullet.y < -20;
+        }),bullets.end());
 
         for (auto& meteor : meteors) {
             meteor.Update(dt);
@@ -284,7 +327,7 @@ int main() {
         for (auto& saturn : saturns) {
             saturn.Update(dt);
         }
-        
+
         for (auto& jupiter : jupiters) {
             jupiter.Update(dt);
         }
@@ -297,117 +340,131 @@ int main() {
             blackhole.Update(dt);
         }
 
+        for (auto& explosion : explosions) {
+            explosion.Update(dt);
+        }
+
         // collision
-       for (auto& bullet : bullets) {
+        for (auto& bullet : bullets) {
 
-        if (!bullet.active) continue;
+            if (!bullet.active) continue;
 
-        for (auto& meteor : meteors) {
-            if (meteor.CheckHit(bullet)) {
-                meteor.TakeDamage(BULLET_DAMAGE);
-                bullet.active = false;
-                break;
-            }
-        }
+            for (auto& meteor : meteors) {
+                if (meteor.CheckHit(bullet)) {
+                    meteor.TakeDamage(BULLET_DAMAGE);
+                    bullet.active = false;
 
-        if (!bullet.active) continue;
+                    if (meteor.IsDead()) {
+                        CreateExplosion(meteor,explosionTexture,explosions);
+                    }
 
-        for (auto& moon : moons) {
-            if (moon.CheckHit(bullet)) {
-                moon.TakeDamage(BULLET_DAMAGE);
-                bullet.active = false;
-
-                if (moon.IsDead()) {
-                    int missing = 30 - BULLET_DAMAGE;
-                    BULLET_DAMAGE += std::min(1, missing);
+                    break;
                 }
-
-                break;
             }
-        }
 
-        if (!bullet.active) continue;
+            if (!bullet.active) continue;
 
-        for (auto& earth : earths) {
-            if (earth.CheckHit(bullet)) {
-                earth.TakeDamage(BULLET_DAMAGE);
-                bullet.active = false;
+            for (auto& moon : moons) {
+                if (moon.CheckHit(bullet)) {
+                    moon.TakeDamage(BULLET_DAMAGE);
+                    bullet.active = false;
 
-                if (earth.IsDead()) {
-                    int missing = 30 - BULLET_DAMAGE;
-                    BULLET_DAMAGE += std::min(2, missing);
+                    if (moon.IsDead()) {
+                        CreateExplosion(moon,explosionTexture,explosions);
+                        int missing = 30 - BULLET_DAMAGE;
+                        BULLET_DAMAGE += std::min(1, missing);
+                    }
+
+                    break;
                 }
-
-                break;
             }
-        }
 
-        if (!bullet.active) continue;
+            if (!bullet.active) continue;
 
-        for (auto& saturn : saturns) {
-            if (saturn.CheckHit(bullet)) {
-                saturn.TakeDamage(BULLET_DAMAGE);
-                bullet.active = false;
+            for (auto& earth : earths) {
+                if (earth.CheckHit(bullet)) {
+                    earth.TakeDamage(BULLET_DAMAGE);
+                    bullet.active = false;
 
-                if (saturn.IsDead()) {
-                    int missing = 30 - BULLET_DAMAGE;
-                    BULLET_DAMAGE += std::min(3, missing);
+                    if (earth.IsDead()) {
+                        CreateExplosion(earth,explosionTexture,explosions);
+                        int missing = 30 - BULLET_DAMAGE;
+                        BULLET_DAMAGE += std::min(2, missing);
+                    }
+
+                    break;
                 }
-
-                break;
             }
-        }
 
-        if (!bullet.active) continue;
+            if (!bullet.active) continue;
 
-        for (auto& jupiter : jupiters) {
-            if (jupiter.CheckHit(bullet)) {
-                jupiter.TakeDamage(BULLET_DAMAGE);
-                bullet.active = false;
+            for (auto& saturn : saturns) {
+                if (saturn.CheckHit(bullet)) {
+                    saturn.TakeDamage(BULLET_DAMAGE);
+                    bullet.active = false;
 
-                if (jupiter.IsDead()) {
-                    int missing = 30 - BULLET_DAMAGE;
-                    BULLET_DAMAGE += std::min(4, missing);
+                    if (saturn.IsDead()) {
+                        CreateExplosion(saturn,explosionTexture,explosions);
+                        int missing = 30 - BULLET_DAMAGE;
+                        BULLET_DAMAGE += std::min(3, missing);
+                    }
+
+                    break;
                 }
-
-                break;
             }
-        }
 
-        if (!bullet.active) continue;
+            if (!bullet.active) continue;
 
-        for (auto& sun : suns) {
-            if (sun.CheckHit(bullet)) {
-                sun.TakeDamage(BULLET_DAMAGE);
-                bullet.active = false;
+            for (auto& jupiter : jupiters) {
+                if (jupiter.CheckHit(bullet)) {
+                    jupiter.TakeDamage(BULLET_DAMAGE);
+                    bullet.active = false;
 
-                if (sun.IsDead()) {
-                    int missing = 30 - BULLET_DAMAGE;
-                    BULLET_DAMAGE += std::min(5, missing);
+                    if (jupiter.IsDead()) {
+                        CreateExplosion(jupiter,explosionTexture,explosions);
+                        int missing = 30 - BULLET_DAMAGE;
+                        BULLET_DAMAGE += std::min(4, missing);
+                    }
+
+                    break;
                 }
-
-                break;
             }
-        }
 
-        if (!bullet.active) continue;
+            if (!bullet.active) continue;
 
-        for (auto& blackhole : blackholes) {
-            if (blackhole.CheckHit(bullet)) {
-                blackhole.TakeDamage(BULLET_DAMAGE);
-                bullet.active = false;
+            for (auto& sun : suns) {
+                if (sun.CheckHit(bullet)) {
+                    sun.TakeDamage(BULLET_DAMAGE);
+                    bullet.active = false;
 
-                if (blackhole.IsDead()) {
-                    int missing = 30 - BULLET_DAMAGE;
-                    BULLET_DAMAGE += std::min(6, missing);
+                    if (sun.IsDead()) {
+                        CreateExplosion(sun,explosionTexture,explosions);
+                        int missing = 30 - BULLET_DAMAGE;
+                        BULLET_DAMAGE += std::min(5, missing);
+                    }
+
+                    break;
                 }
+            }
 
-                break;
+            if (!bullet.active) continue;
+
+            for (auto& blackhole : blackholes) {
+                if (blackhole.CheckHit(bullet)) {
+                    blackhole.TakeDamage(BULLET_DAMAGE);
+                    bullet.active = false;
+
+                    if (blackhole.IsDead()) {
+                        CreateExplosion(blackhole,explosionTexture,explosions);
+                        int missing = 30 - BULLET_DAMAGE;
+                        BULLET_DAMAGE += std::min(6, missing);
+                    }
+
+                    break;
+                }
             }
         }
-    }
 
-        
         // destroying
         meteors.erase(
             remove_if(meteors.begin(), meteors.end(),[](const Meteor& meteor) {
@@ -429,7 +486,7 @@ int main() {
             }),
             earths.end()
         );
-        
+
         saturns.erase(
             remove_if(saturns.begin(), saturns.end(),[](const Saturn& saturn) {
                 return saturn.IsDead();
@@ -456,11 +513,17 @@ int main() {
                 return blackhole.IsDead();
             }),
             blackholes.end()
-        );        
+        );
 
-        
+        explosions.erase(
+            remove_if(explosions.begin(), explosions.end(),[](const Explosion& explosion) {
+                return explosion.finished;
+            }),
+            explosions.end()
+        );
+
         BeginDrawing();
-        
+
             ClearBackground(BLACK);
             DrawTexture(map,0,0,WHITE);
             DISTANCE += 333 * dt;
@@ -475,11 +538,24 @@ int main() {
             for (auto& sun : suns) sun.Draw();
             for (auto& blackhole : blackholes) blackhole.Draw();
 
+            for (auto& explosion : explosions) explosion.Draw();
+
             DrawText(TextFormat("Distance: %d meters",(int)DISTANCE),20,20,30,RED);
             DrawText(TextFormat("DMG: %d",BULLET_DAMAGE),20,60,30, RED);
 
         EndDrawing();
     }
+    
+    UnloadTexture(map);
+    UnloadTexture(meteorTexture);
+    UnloadTexture(moonTexture);
+    UnloadTexture(earthTexture);
+    UnloadTexture(saturnTexture);
+    UnloadTexture(jupiterTexture);
+    UnloadTexture(sunTexture);
+    UnloadTexture(blackholeTexture);
+    UnloadTexture(explosionTexture);
+
     CloseWindow();
     return 0;
 }
