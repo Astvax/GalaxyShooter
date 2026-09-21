@@ -57,21 +57,33 @@ class Bullet {
 public:
     float x, y;
     bool active = true;
-
+    bool levelSoundPlayed = false;
     void Update(float dt) {
         y -= 1000 * dt;
     }
 
-    void Draw() {
-        Color color = MyYellow;
+void Draw(Sound& levelSound) {
+    static int lastDamage = BULLET_DAMAGE;
 
-        if (BULLET_DAMAGE >= 20)
-            color = MyOrange;
+    Color color = MyYellow;
 
-        if (BULLET_DAMAGE == 30)
-            color = MyRed;
+    if (BULLET_DAMAGE >= 20) {
+        color = MyOrange;
 
-        DrawRectangle((int)x - 2, (int)y - 10, 6, 20, color);
+        if (lastDamage < 20)
+            PlaySound(levelSound);
+    }
+
+    if (BULLET_DAMAGE >= 30) {
+        color = MyRed;
+
+        if (lastDamage < 30)
+            PlaySound(levelSound);
+    }
+
+    lastDamage = BULLET_DAMAGE;
+
+    DrawRectangle((int)x - 2, (int)y - 10, 6, 20, color);
     }
 };
 
@@ -159,7 +171,7 @@ public:
     Meteor(Texture2D texture): Meteor(texture, GetRandomValue(80, 120)) {}
 
     Meteor(Texture2D texture, int size): SpaceObject(texture,
-        GetRandomValue(0, WIDTH - size),-100,size,size,GetRandomValue(100, 200),60) {}
+        GetRandomValue(0, WIDTH - size),-100,size,size,GetRandomValue(100, 170),60) {}
 };
 
 
@@ -168,7 +180,7 @@ public:
     Moon(Texture2D texture): Moon(texture, GetRandomValue(140,180)) {}
 
     Moon(Texture2D texture, int size) : SpaceObject(texture,
-        GetRandomValue(0, WIDTH - size), -100, size, size, GetRandomValue(100, 200), 150) {}
+        GetRandomValue(0, WIDTH - size), -100, size, size, GetRandomValue(100, 170), 150) {}
 };
 
 
@@ -177,7 +189,7 @@ public:
     Earth(Texture2D texture) : Earth(texture, GetRandomValue(250, 300)) {}
 
     Earth(Texture2D texture, int size) : SpaceObject(texture,
-        GetRandomValue(0, WIDTH - size), -100, size, size, GetRandomValue(100, 200), 240) {}
+        GetRandomValue(0, WIDTH - size), -100, size, size, GetRandomValue(100, 160), 240) {}
 };
 
 
@@ -186,7 +198,7 @@ public:
     Saturn(Texture2D texture) : Saturn(texture, GetRandomValue(340,400)) {}
 
     Saturn(Texture2D texture, int size) : SpaceObject(texture,
-         GetRandomValue(0, WIDTH - size), -100, size, size, GetRandomValue(100,180),400) {}
+         GetRandomValue(0, WIDTH - size), -100, size, size, GetRandomValue(100,150),400) {}
 };
 
 
@@ -195,7 +207,7 @@ public:
     Jupiter(Texture2D texture) : Jupiter(texture, GetRandomValue(340, 400)) {}
 
     Jupiter(Texture2D texture, int size) : SpaceObject(texture,
-        GetRandomValue(0, WIDTH-size), -100, size, size, GetRandomValue(90,150),600) {}
+        GetRandomValue(0, WIDTH-size), -100, size, size, GetRandomValue(90,140),600) {}
 };
 
 
@@ -204,7 +216,7 @@ public:
     Sun(Texture2D texture) : Sun(texture, GetRandomValue(380,440)) {}
 
     Sun(Texture2D texture, int size) : SpaceObject(texture,
-        GetRandomValue(0, WIDTH-size), -100, size, size, GetRandomValue(80,140), 690) {}
+        GetRandomValue(0, WIDTH-size), -100, size, size, GetRandomValue(80,130), 690) {}
 };
 
 
@@ -220,7 +232,8 @@ public:
 int main() {
     SetConfigFlags(FLAG_WINDOW_UNDECORATED);
     InitWindow(WIDTH, HEIGHT, "Galaxy Shooter");
-    SetTargetFPS(120);
+    InitAudioDevice();
+    SetTargetFPS(165);
 
     SpaceShip ship;
     vector<Moon> moons;
@@ -242,7 +255,11 @@ int main() {
     float sunTimer = 78;
     float blackholeTimer = 100;
 
-    Texture2D map = LoadTexture("assets/textures/galaxy3.png");
+    Texture2D map = LoadTexture("assets/textures/galaxy4.png");
+    BeginDrawing();
+    ClearBackground(BLACK);
+    DrawTexture(map,0,0,WHITE);
+    EndDrawing();
     Texture2D meteorTexture = LoadTexture("assets/textures/greymeteor.png");
     Texture2D moonTexture = LoadTexture("assets/textures/moon.png");
     Texture2D earthTexture = LoadTexture("assets/textures/earth.png");
@@ -251,6 +268,17 @@ int main() {
     Texture2D sunTexture = LoadTexture("assets/textures/sun.png");
     Texture2D blackholeTexture = LoadTexture("assets/textures/blackhole.png");
     Texture2D explosionTexture = LoadTexture("assets/textures/explosionssprite.png");
+
+    Sound shootSound = LoadSound("assets/audio/shoot.wav");
+    Sound explosionSound = LoadSound("assets/audio/explosion.wav");
+    Sound levelSound = LoadSound("assets/audio/levelup.wav");
+    Sound cosmoSound = LoadSound("assets/audio/background.mp3");
+
+    PlaySound(cosmoSound);
+
+    SetSoundVolume(shootSound, 0.02f);
+    SetSoundVolume(explosionSound, 0.3f);
+    SetSoundVolume(cosmoSound, 0.3f);
 
     while (!WindowShouldClose()) {
         float dt = GetFrameTime();
@@ -268,6 +296,7 @@ int main() {
 
         if (bulletTimer <= 0) {
             bullets.push_back({ship.x, ship.y});
+            PlaySound(shootSound);
             bulletTimer = 0.13f;
         }
 
@@ -278,7 +307,7 @@ int main() {
 
         if (meteorTimer <= 0) {
             meteors.push_back(Meteor(meteorTexture));
-            meteorTimer = 2.0f;
+            meteorTimer = 2.5f;
         }
 
         if (earthTimer <= 0) {
@@ -356,6 +385,7 @@ int main() {
 
                     if (meteor.IsDead()) {
                         CreateExplosion(meteor,explosionTexture,explosions);
+                        PlaySound(explosionSound);
                     }
 
                     break;
@@ -371,6 +401,7 @@ int main() {
 
                     if (moon.IsDead()) {
                         CreateExplosion(moon,explosionTexture,explosions);
+                        PlaySound(explosionSound);
                         int missing = 30 - BULLET_DAMAGE;
                         BULLET_DAMAGE += std::min(1, missing);
                     }
@@ -388,6 +419,7 @@ int main() {
 
                     if (earth.IsDead()) {
                         CreateExplosion(earth,explosionTexture,explosions);
+                        PlaySound(explosionSound);
                         int missing = 30 - BULLET_DAMAGE;
                         BULLET_DAMAGE += std::min(2, missing);
                     }
@@ -405,6 +437,7 @@ int main() {
 
                     if (saturn.IsDead()) {
                         CreateExplosion(saturn,explosionTexture,explosions);
+                        PlaySound(explosionSound);
                         int missing = 30 - BULLET_DAMAGE;
                         BULLET_DAMAGE += std::min(3, missing);
                     }
@@ -422,6 +455,7 @@ int main() {
 
                     if (jupiter.IsDead()) {
                         CreateExplosion(jupiter,explosionTexture,explosions);
+                        PlaySound(explosionSound);
                         int missing = 30 - BULLET_DAMAGE;
                         BULLET_DAMAGE += std::min(4, missing);
                     }
@@ -439,6 +473,7 @@ int main() {
 
                     if (sun.IsDead()) {
                         CreateExplosion(sun,explosionTexture,explosions);
+                        PlaySound(explosionSound);
                         int missing = 30 - BULLET_DAMAGE;
                         BULLET_DAMAGE += std::min(5, missing);
                     }
@@ -456,6 +491,7 @@ int main() {
 
                     if (blackhole.IsDead()) {
                         CreateExplosion(blackhole,explosionTexture,explosions);
+                        PlaySound(explosionSound);
                         int missing = 30 - BULLET_DAMAGE;
                         BULLET_DAMAGE += std::min(6, missing);
                     }
@@ -530,7 +566,7 @@ int main() {
 
             ship.Draw();
             for (auto& moon : moons) moon.Draw();
-            for (auto& bullet : bullets) bullet.Draw();
+            for (auto& bullet : bullets) bullet.Draw(levelSound);
             for (auto& meteor : meteors) meteor.Draw();
             for (auto& earth : earths) earth.Draw();
             for (auto& saturn : saturns) saturn.Draw();
@@ -555,6 +591,10 @@ int main() {
     UnloadTexture(sunTexture);
     UnloadTexture(blackholeTexture);
     UnloadTexture(explosionTexture);
+
+    UnloadSound(shootSound);
+    UnloadSound(explosionSound);
+    UnloadSound(levelSound);
 
     CloseWindow();
     return 0;
