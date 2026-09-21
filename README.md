@@ -25,6 +25,7 @@ The player controls a spaceship, destroys planets and meteors, increases bullet 
 - Raylib
 - C++17
 - Make
+- Linux
 - Git / GitHub
 
 ## 🎮 Controls
@@ -47,6 +48,6 @@ The player controls a spaceship, destroys planets and meteors, increases bullet 
 
 ```bash
 make galaxy
+./galaxy
+```
 
-Or compile manually:
-g++ -std=c++17 -O2 galaxy.cpp -o galaxy -lraylib -lGL -lm -lpthread -ldl -lrt -lX11
