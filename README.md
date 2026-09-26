@@ -47,6 +47,12 @@ The player controls a spaceship, destroys planets and meteors, increases bullet 
 ### Build
 
 ```bash
+g++ -std=c++17 -O2 main.cpp -o main.exe -lraylib -lopengl32 -lgdi32 -lwinmm
+./galaxy
+```
+
+
+```bash
 make galaxy
 ./galaxy
 ```

@@ -273,7 +273,7 @@ int main() {
     float sunTimer = 78;
     float blackholeTimer = 100;
 
-    Texture2D map = LoadTexture("assets/textures/galaxy4.png");
+    Texture2D map = LoadTexture("assets/textures/map.png");
     BeginDrawing();
     ClearBackground(BLACK);
     DrawTexture(map,0,0,WHITE);
@@ -299,9 +299,11 @@ int main() {
 
     PlaySound(cosmoSound);
 
+    SetSoundVolume(levelSound, 0.4f);
     SetSoundVolume(shootSound, 0.02f);
     SetSoundVolume(explosionSound, 0.3f);
     SetSoundVolume(cosmoSound, 0.3f);
+    SetSoundVolume(ouchSound, 0.3f);
 
     auto ResetGame = [&]() {
         lives = 3;
@@ -524,14 +526,12 @@ int main() {
                     if (sun.CheckHit(bullet)) {
                         sun.TakeDamage(BULLET_DAMAGE);
                         bullet.active = false;
-
                         if (sun.IsDead()) {
                             CreateExplosion(sun,explosionTexture,explosions);
                             PlaySound(explosionSound);
                             int missing = 30 - BULLET_DAMAGE;
                             BULLET_DAMAGE += std::min(5, missing);
                         }
-
                         break;
                     }
                 }
@@ -600,7 +600,7 @@ int main() {
             for (auto& blackhole : blackholes) blackhole.Draw();
             for (auto& explosion : explosions) explosion.Draw();
 
-            DrawText(TextFormat("Distance: %d meters",(int)DISTANCE),20,20,30,RED);
+            DrawText(TextFormat("Distance: %d m / 100000 m",(int)DISTANCE),20,20,30,RED);
             DrawText(TextFormat("DMG: %d",BULLET_DAMAGE),20,60,30, RED);
 
             for (int i = 0; i < 3; i++) {
@@ -637,6 +637,7 @@ int main() {
 
     UnloadSound(shootSound);
     UnloadSound(explosionSound);
+    UnloadSound(ouchSound);
     UnloadSound(levelSound);
     UnloadSound(cosmoSound);
 
