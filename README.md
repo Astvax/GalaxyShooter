@@ -4,7 +4,8 @@ A 2D space shooter game built with **C++ and Raylib**.
 
 The player controls a spaceship, destroys planets and meteors, increases bullet damage and tries to survive as long as possible.
 
-![Galaxy Shooter](assets/textures/gameplay.png)
+![Galaxy Shooter](assets/textures/gameplay1.png)
+![GalaxyShooter](assets/textures/gameplay2.png)
 
 ## 🎮 Features
 

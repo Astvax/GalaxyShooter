@@ -6,10 +6,10 @@
 #include <algorithm>
 using namespace std;
 
-                /*--------------------------------------------------------------------------+
-                |                       Galaxy Shooter C++ Игра без ИИ                       |
-                |                         Начало проекта: 09.09.2026                        |
-                +--------------------------------------------------------------------------*/
+                   /*--------------------------------------------------------------------------+
+                   |                       Galaxy Shooter C++ Игра без ИИ                      |
+                   |                         Начало проекта: 09.09.2026                        |
+                   +--------------------------------------------------------------------------*/
 
 const int WIDTH = 1000;
 const int HEIGHT = 1080;
@@ -19,12 +19,14 @@ int BULLET_DAMAGE = 10;
 const int MAX_DAMAGE = 30;
 int lives = 3;
 
+int ExplosionIndex = 0;
+
 Color MyYellow = {229, 255, 0, 255};
 Color MyOrange = {255, 167, 0, 255};
 Color MyRed = {255, 0, 0, 255};
 
-enum class GameState { Playing, GameOver, Victory};
-GameState state = GameState::Playing;
+enum class GameState {Playing, GameOver, Victory, Init};
+GameState state = GameState::Init;
 
 
 class SpaceShip {
@@ -56,38 +58,76 @@ public:
     }
 };
 
+class Ability {
+public:
+    float cooldown = 15.0f;
+    float timer = 0;
+
+    void Update(float dt) {
+        if (timer > 0) {
+            timer -= dt;
+            if (timer < 0) timer = 0;
+        }
+    }
+
+    bool CanUse() const {
+        return timer <= 0;
+    }
+
+    void Use() {
+        timer = cooldown;
+    }
+
+    void Reset() {
+        timer = 0;
+    }
+};
 
 class Bullet {
 public:
     float x, y;
     bool active = true;
     bool levelSoundPlayed = false;
+    bool isAbility = false;
+    Texture2D texture;
+    float width = 6, height = 20;
+    float speed = 1000;
+    int abilityDamage = BULLET_DAMAGE * 10; 
+    Bullet(float x, float y) : x(x), y(y) {}
+
+    Bullet(float x, float y, Texture2D texture, int ablityDamage)
+        : x(x), y(y), isAbility(true), abilityDamage(abilityDamage), texture(texture), width(100), height(100), speed(1500) {}
+
     void Update(float dt) {
-        y -= 1000 * dt;
+        y -= speed * dt;
     }
 
-void Draw(Sound& levelSound) {
-    static int lastDamage = BULLET_DAMAGE;
+    void Draw(Sound& levelSound) {
+        if (isAbility) {
+            DrawTexturePro(texture,
+                {0, 0, (float)texture.width, (float)texture.height},
+                {x - width / 2, y - height / 2, width, height},
+                {0, 0}, 0, WHITE);
+            return;
+        }
 
-    Color color = GREEN;
+        static int lastDamage = BULLET_DAMAGE;
+        Color color = GREEN;
 
-    if (BULLET_DAMAGE >= 20) {
-        color = PURPLE;
+        if (BULLET_DAMAGE >= 20) {
+            ExplosionIndex = 1;
+            color = PURPLE;
+            if (lastDamage < 20) PlaySound(levelSound);
+        }
 
-        if (lastDamage < 20)
-            PlaySound(levelSound);
-    }
+        if (BULLET_DAMAGE >= 30) {
+            ExplosionIndex = 2;
+            color = MyRed;
+            if (lastDamage < 30) PlaySound(levelSound);
+        }
 
-    if (BULLET_DAMAGE >= 30) {
-        color = MyRed;
-
-        if (lastDamage < 30)
-            PlaySound(levelSound);
-    }
-
-    lastDamage = BULLET_DAMAGE;
-
-    DrawRectangle((int)x - 2, (int)y - 10, 6, 20, color);
+        lastDamage = BULLET_DAMAGE;
+        DrawRectangle((int)x - 2, (int)y - 10, 6, 20, color);
     }
 };
 
@@ -117,8 +157,13 @@ public:
     }
 
     bool CheckHit(const Bullet& bullet) const {
-        Rectangle bulletRect = {bullet.x - 2,bullet.y - 10,4,20};
-        return CheckCollisionRecs(GetCollisionRect(),bulletRect);
+        Rectangle bulletRect = {
+            bullet.x - bullet.width / 2,
+            bullet.y - bullet.height / 2,
+            bullet.width,
+            bullet.height
+        };
+        return CheckCollisionRecs(GetCollisionRect(), bulletRect);
     }
 
     void TakeDamage(int damage) {
@@ -248,16 +293,19 @@ void CleanupObjects(vector<T>& objects, Sound& ouch) {
 
 
 int main() {
+    SetTraceLogLevel(LOG_WARNING);
     SetConfigFlags(FLAG_WINDOW_UNDECORATED);
     InitWindow(WIDTH, HEIGHT, "Galaxy Shooter");
     InitAudioDevice();  
     SetTargetFPS(165);
-
+    
+    // initialize stuff
     SpaceShip ship;
+    Ability ability;
     vector<Moon> moons;
     vector<Bullet> bullets;
     vector<Meteor> meteors;
-    vector<Earth> earths;
+    vector<Earth> earths;   
     vector<Saturn> saturns;
     vector<Jupiter> jupiters;
     vector<Sun> suns;
@@ -274,10 +322,12 @@ int main() {
     float blackholeTimer = 100;
 
     Texture2D map = LoadTexture("assets/textures/map.png");
+
     BeginDrawing();
     ClearBackground(BLACK);
     DrawTexture(map,0,0,WHITE);
     EndDrawing();
+
     Texture2D meteorTexture = LoadTexture("assets/textures/greymeteor.png");
     Texture2D moonTexture = LoadTexture("assets/textures/moon.png");
     Texture2D earthTexture = LoadTexture("assets/textures/earth.png");
@@ -285,9 +335,13 @@ int main() {
     Texture2D jupiterTexture = LoadTexture("assets/textures/jupiter.png");
     Texture2D sunTexture = LoadTexture("assets/textures/sun.png");
     Texture2D blackholeTexture = LoadTexture("assets/textures/blackhole.png");
-    Texture2D explosionTexture = LoadTexture("assets/textures/explosionssprite.png");
+    Texture2D explosionsRedTexture = LoadTexture("assets/textures/explosionsred.png");
+    Texture2D explosionsPurpleTexture = LoadTexture("assets/textures/explosionspurple.png");
+    Texture2D explosionsGreenTexture = LoadTexture("assets/textures/explosionsgreen.png");
     Texture2D heartTexture = LoadTexture("assets/textures/heart.png");
     Texture2D greyHeartTexture = LoadTexture("assets/textures/greyheart.png");
+    Texture2D abilityTexture = LoadTexture("assets/textures/ability.png");
+    Texture2D abilityIconTexture = LoadTexture("assets/textures/abilityicon.png");
 
     Sound shootSound = LoadSound("assets/audio/shoot.wav");
     Sound explosionSound = LoadSound("assets/audio/explosion.wav");
@@ -296,6 +350,7 @@ int main() {
     Sound victorySound = LoadSound("assets/audio/victory.wav");
     Sound loseSound = LoadSound("assets/audio/lose.wav");
     Sound ouchSound = LoadSound("assets/audio/ouch.wav");
+    Sound abilitySound = LoadSound("assets/audio/abilitysound.wav");
 
     PlaySound(cosmoSound);
 
@@ -304,6 +359,7 @@ int main() {
     SetSoundVolume(explosionSound, 0.3f);
     SetSoundVolume(cosmoSound, 0.3f);
     SetSoundVolume(ouchSound, 0.3f);
+    SetSoundVolume(abilitySound, 0.4f);
 
     auto ResetGame = [&]() {
         lives = 3;
@@ -329,9 +385,15 @@ int main() {
         blackholeTimer = 100;
         state = GameState::Playing;
     };
+    
+    vector<Texture2D> ExplosionTextures = {explosionsGreenTexture, explosionsPurpleTexture, explosionsRedTexture};
 
     while (!WindowShouldClose()) {
         float dt = GetFrameTime();
+
+        if (state == GameState::Init && IsKeyPressed(KEY_SPACE)) {
+            state = GameState::Playing;
+        }
 
         if (state == GameState::GameOver || state == GameState::Victory) {
             if (IsKeyPressed(KEY_SPACE)) ResetGame();
@@ -354,6 +416,14 @@ int main() {
                 bullets.push_back({ship.x, ship.y});
                 PlaySound(shootSound);
                 bulletTimer = 0.13f;
+            }
+
+            ability.Update(dt);
+
+            if (IsKeyPressed(KEY_Q) && ability.CanUse()) {
+                bullets.push_back(Bullet(ship.x, ship.y, abilityTexture, 100));
+                PlaySound(abilitySound);
+                ability.Use();
             }
 
             if (moonTimer <= 0) {
@@ -436,11 +506,11 @@ int main() {
 
                 for (auto& meteor : meteors) {
                     if (meteor.CheckHit(bullet)) {
-                        meteor.TakeDamage(BULLET_DAMAGE);
+                        meteor.TakeDamage(bullet.isAbility ? bullet.abilityDamage : BULLET_DAMAGE);
                         bullet.active = false;
 
                         if (meteor.IsDead()) {
-                            CreateExplosion(meteor,explosionTexture,explosions);
+                            CreateExplosion(meteor,ExplosionTextures[ExplosionIndex],explosions);
                             PlaySound(explosionSound);
                         }
 
@@ -452,13 +522,13 @@ int main() {
 
                 for (auto& moon : moons) {
                     if (moon.CheckHit(bullet)) {
-                        moon.TakeDamage(BULLET_DAMAGE);
+                        moon.TakeDamage(bullet.isAbility ? bullet.abilityDamage : BULLET_DAMAGE);
                         bullet.active = false;
 
                         if (moon.IsDead()) {
-                            CreateExplosion(moon,explosionTexture,explosions);
+                            CreateExplosion(moon,ExplosionTextures[ExplosionIndex],explosions);
                             PlaySound(explosionSound);
-                            int missing = 30 - BULLET_DAMAGE;
+                            int missing = MAX_DAMAGE - BULLET_DAMAGE;
                             BULLET_DAMAGE += std::min(1, missing);
                         }
 
@@ -470,13 +540,13 @@ int main() {
 
                 for (auto& earth : earths) {
                     if (earth.CheckHit(bullet)) {
-                        earth.TakeDamage(BULLET_DAMAGE);
+                        earth.TakeDamage(bullet.isAbility ? bullet.abilityDamage : BULLET_DAMAGE);
                         bullet.active = false;
 
                         if (earth.IsDead()) {
-                            CreateExplosion(earth,explosionTexture,explosions);
+                            CreateExplosion(earth,ExplosionTextures[ExplosionIndex],explosions);
                             PlaySound(explosionSound);
-                            int missing = 30 - BULLET_DAMAGE;
+                            int missing = MAX_DAMAGE - BULLET_DAMAGE;
                             BULLET_DAMAGE += std::min(2, missing);
                         }
 
@@ -488,13 +558,13 @@ int main() {
 
                 for (auto& saturn : saturns) {
                     if (saturn.CheckHit(bullet)) {
-                        saturn.TakeDamage(BULLET_DAMAGE);
+                        saturn.TakeDamage(bullet.isAbility ? bullet.abilityDamage : BULLET_DAMAGE);
                         bullet.active = false;
 
                         if (saturn.IsDead()) {
-                            CreateExplosion(saturn,explosionTexture,explosions);
+                            CreateExplosion(saturn,ExplosionTextures[ExplosionIndex],explosions);
                             PlaySound(explosionSound);
-                            int missing = 30 - BULLET_DAMAGE;
+                            int missing = MAX_DAMAGE - BULLET_DAMAGE;
                             BULLET_DAMAGE += std::min(3, missing);
                         }
 
@@ -506,13 +576,13 @@ int main() {
 
                 for (auto& jupiter : jupiters) {
                     if (jupiter.CheckHit(bullet)) {
-                        jupiter.TakeDamage(BULLET_DAMAGE);
+                        jupiter.TakeDamage(bullet.isAbility ? bullet.abilityDamage : BULLET_DAMAGE);
                         bullet.active = false;
 
                         if (jupiter.IsDead()) {
-                            CreateExplosion(jupiter,explosionTexture,explosions);
+                            CreateExplosion(jupiter,ExplosionTextures[ExplosionIndex],explosions);
                             PlaySound(explosionSound);
-                            int missing = 30 - BULLET_DAMAGE;
+                            int missing = MAX_DAMAGE - BULLET_DAMAGE;
                             BULLET_DAMAGE += std::min(4, missing);
                         }
 
@@ -524,12 +594,12 @@ int main() {
 
                 for (auto& sun : suns) {
                     if (sun.CheckHit(bullet)) {
-                        sun.TakeDamage(BULLET_DAMAGE);
+                        sun.TakeDamage(bullet.isAbility ? bullet.abilityDamage : BULLET_DAMAGE);
                         bullet.active = false;
                         if (sun.IsDead()) {
-                            CreateExplosion(sun,explosionTexture,explosions);
+                            CreateExplosion(sun,ExplosionTextures[ExplosionIndex],explosions);
                             PlaySound(explosionSound);
-                            int missing = 30 - BULLET_DAMAGE;
+                            int missing = MAX_DAMAGE - BULLET_DAMAGE;
                             BULLET_DAMAGE += std::min(5, missing);
                         }
                         break;
@@ -540,13 +610,13 @@ int main() {
 
                 for (auto& blackhole : blackholes) {
                     if (blackhole.CheckHit(bullet)) {
-                        blackhole.TakeDamage(BULLET_DAMAGE);
+                        blackhole.TakeDamage(bullet.isAbility ? bullet.abilityDamage : BULLET_DAMAGE);
                         bullet.active = false;
 
                         if (blackhole.IsDead()) {
-                            CreateExplosion(blackhole,explosionTexture,explosions);
+                            CreateExplosion(blackhole,ExplosionTextures[ExplosionIndex],explosions);
                             PlaySound(explosionSound);
-                            int missing = 30 - BULLET_DAMAGE;
+                            int missing = MAX_DAMAGE - BULLET_DAMAGE;
                             BULLET_DAMAGE += std::min(6, missing);
                         }
 
@@ -587,6 +657,27 @@ int main() {
 
             ClearBackground(BLACK);
             DrawTexture(map,0,0,WHITE);
+
+            if (state == GameState::Init) {
+                DrawRectangle(0, 0, WIDTH, HEIGHT, {0, 0, 0, 180});
+
+                DrawText(
+                    "GALAXY SHOOTER",
+                    WIDTH / 2 - MeasureText("GALAXY SHOOTER", 50) / 2,
+                    HEIGHT / 2 - 100,
+                    50,
+                    GREEN
+                );
+
+                DrawText(
+                    "Press SPACE to start",
+                    WIDTH / 2 - MeasureText("Press SPACE to start", 30) / 2,
+                    HEIGHT / 2,
+                    30,
+                    WHITE
+                );
+            }
+
             if (state == GameState::Playing) DISTANCE += 333 * dt;
 
             ship.Draw();
@@ -602,7 +693,17 @@ int main() {
 
             DrawText(TextFormat("Distance: %d m / 100000 m",(int)DISTANCE),20,20,30,RED);
             DrawText(TextFormat("DMG: %d",BULLET_DAMAGE),20,60,30, RED);
+            DrawTextureEx(abilityIconTexture, {WIDTH - 180, 60}, 0, 120.0f / abilityIconTexture.width, WHITE);
+            if (ability.timer == 0.0f) {
+                DrawText(TextFormat("Coldown: %.1f", ability.timer), WIDTH - 200, 20, 30, GREEN);
+                DrawText("Q", WIDTH - 100, 70, 30, GREEN);  
+            }
+            else {
+                DrawText(TextFormat("Coldown: %.1f", ability.timer), WIDTH - 200, 20, 30, RED);
+                DrawText("Q", WIDTH - 100, 70, 30, RED);  
+            }
 
+        
             for (int i = 0; i < 3; i++) {
                 Texture2D tex = (i < lives) ? heartTexture : greyHeartTexture;
                 DrawTextureEx(tex, {-57.0f + i * 50.0f, 20.0f}, 0, 0.15f, WHITE);
@@ -631,15 +732,20 @@ int main() {
     UnloadTexture(jupiterTexture);
     UnloadTexture(sunTexture);
     UnloadTexture(blackholeTexture);
-    UnloadTexture(explosionTexture);
+    UnloadTexture(explosionsGreenTexture);
+    UnloadTexture(explosionsPurpleTexture);
+    UnloadTexture(explosionsRedTexture);
     UnloadTexture(heartTexture);
     UnloadTexture(greyHeartTexture);
+    UnloadTexture(abilityTexture);
+    UnloadTexture(abilityIconTexture);
 
     UnloadSound(shootSound);
     UnloadSound(explosionSound);
     UnloadSound(ouchSound);
     UnloadSound(levelSound);
     UnloadSound(cosmoSound);
+    UnloadSound(abilitySound);
 
     CloseWindow();
     return 0;
