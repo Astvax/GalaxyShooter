@@ -53,7 +53,17 @@ Windows:
 g++ -std=c++17 -O2 main.cpp -o main.exe -lraylib -lopengl32 -lgdi32 -lwinmm
 ./galaxy
 ```
+or
+```bash
+make galaxy
+./galaxy
+```
+
 Linux:
+```bash
+g++ -std=c++17 -O2 galaxy.cpp -o galaxy -lraylib -lGL -lm -lpthread -ldl -lrt -lX11
+```
+or
 ```bash
 make galaxy
 ./galaxy
