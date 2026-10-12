@@ -33,7 +33,7 @@ The player controls a spaceship, destroys planets and meteors, increases bullet 
 
 | Key | Action |
 |---|---|
-| `Q` / Ability |
+| `Q` | Ability |
 | `A` / `←` | Move left |
 | `D` / `→` | Move right |
 | Automatic | Shooting |
