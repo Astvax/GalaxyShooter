@@ -383,6 +383,7 @@ int main() {
         jupiterTimer = 60;
         sunTimer = 78;
         blackholeTimer = 100;
+        ability.timer = 0.0f;
         state = GameState::Playing;
     };
     
@@ -420,7 +421,7 @@ int main() {
 
             ability.Update(dt);
 
-            if (IsKeyPressed(KEY_Q) && ability.CanUse()) {
+            if ((IsKeyPressed(KEY_Q) || IsMouseButtonPressed(MOUSE_LEFT_BUTTON || IsMouseButtonPressed(MOUSE_RIGHT_BUTTON)))  && ability.CanUse()) {
                 bullets.push_back(Bullet(ship.x, ship.y, abilityTexture, 100));
                 PlaySound(abilitySound);
                 ability.Use();
