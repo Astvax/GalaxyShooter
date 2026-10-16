@@ -6,10 +6,10 @@
 #include <algorithm>
 using namespace std;
 
-                   /*--------------------------------------------------------------------------+
-                   |                       Galaxy Shooter C++ Игра без ИИ                      |
-                   |                         Начало проекта: 09.09.2026                        |
-                   +--------------------------------------------------------------------------*/
+                                /*--------------------------------------------------------------------------+
+                                |                       Galaxy Shooter C++ Игра без ИИ                      |
+                                |                         Начало проекта: 09.09.2026                        |
+                                +--------------------------------------------------------------------------*/
 
 const int WIDTH = 1000;
 const int HEIGHT = 1080;
@@ -20,6 +20,7 @@ const int MAX_DAMAGE = 30;
 int lives = 3;
 
 int ExplosionIndex = 0;
+int SpaceShipIndex = 0;
 
 Color MyYellow = {229, 255, 0, 255};
 Color MyOrange = {255, 167, 0, 255};
@@ -35,7 +36,7 @@ public:
     float x, y;
     const float width = 150, height = 150;
 
-    SpaceShip() : texture(LoadTexture("assets/textures/galaxyship.png")),x(WIDTH / 2.0f), y(HEIGHT - 150.0f) {};
+    SpaceShip() : texture(texture),x(WIDTH / 2.0f), y(HEIGHT - 150.0f) {};
 
     ~SpaceShip() {
         UnloadTexture(texture);
@@ -115,12 +116,14 @@ public:
         Color color = GREEN;
 
         if (BULLET_DAMAGE >= 20) {
+            SpaceShipIndex = 1;
             ExplosionIndex = 1;
             color = PURPLE;
             if (lastDamage < 20) PlaySound(levelSound);
         }
 
         if (BULLET_DAMAGE >= 30) {
+            SpaceShipIndex = 2;
             ExplosionIndex = 2;
             color = MyRed;
             if (lastDamage < 30) PlaySound(levelSound);
@@ -328,6 +331,9 @@ int main() {
     DrawTexture(map,0,0,WHITE);
     EndDrawing();
 
+    Texture2D purpleship = LoadTexture("assets/textures/shippurple.png");
+    Texture2D redship = LoadTexture("assets/textures/shipred.png");
+    Texture2D greenship = LoadTexture("assets/textures/shipgreen.png");
     Texture2D meteorTexture = LoadTexture("assets/textures/greymeteor.png");
     Texture2D moonTexture = LoadTexture("assets/textures/moon.png");
     Texture2D earthTexture = LoadTexture("assets/textures/earth.png");
@@ -384,10 +390,13 @@ int main() {
         sunTimer = 78;
         blackholeTimer = 100;
         ability.timer = 0.0f;
+        SpaceShipIndex = 0;
+        ExplosionIndex = 0;
         state = GameState::Playing;
     };
     
     vector<Texture2D> ExplosionTextures = {explosionsGreenTexture, explosionsPurpleTexture, explosionsRedTexture};
+    vector<Texture2D> SpaceShipTextures = {greenship, purpleship, redship};
 
     while (!WindowShouldClose()) {
         float dt = GetFrameTime();
@@ -401,6 +410,7 @@ int main() {
         }
 
         if (state == GameState::Playing) {
+        ship.texture = SpaceShipTextures[SpaceShipIndex];
         ship.Update();
 
             // timers
@@ -660,6 +670,7 @@ int main() {
             DrawTexture(map,0,0,WHITE);
 
             if (state == GameState::Init) {
+                ClearBackground(BLACK);
                 DrawRectangle(0, 0, WIDTH, HEIGHT, {0, 0, 0, 180});
 
                 DrawText(
@@ -740,6 +751,9 @@ int main() {
     UnloadTexture(greyHeartTexture);
     UnloadTexture(abilityTexture);
     UnloadTexture(abilityIconTexture);
+    UnloadTexture(greenship);
+    UnloadTexture(purpleship);
+    UnloadTexture(redship);
 
     UnloadSound(shootSound);
     UnloadSound(explosionSound);
